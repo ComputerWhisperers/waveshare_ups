@@ -1,0 +1,8 @@
+{
+  "filename": "waveshare_ups.zip",
+  "hide_default_branch": true,
+  "homeassistant": "2026.6.0",
+  "name": "Waveshare 3S UPS for Raspberry Pi",
+  "render_readme": true,
+  "zip_release": true
+}

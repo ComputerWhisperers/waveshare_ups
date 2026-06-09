@@ -1,0 +1,315 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Only a single UPS can be configured.",
+      "i2c_unavailable": "I2C is unavailable. Enable I2C and confirm Home Assistant can access the Raspberry Pi I2C bus.",
+      "ups_not_detected": "I2C is available, but no compatible UPS board was detected at addresses 0x40 through 0x4f."
+    },
+    "error": {
+      "invalid_battery_levels": "Shutdown battery level must be lower than warning battery level.",
+      "invalid_hat_address": "Enter an INA219 I2C address from 0x40 through 0x4f.",
+      "invalid_relay_gpio": "GPIO2 and GPIO3 are reserved for I2C. Select a different BCM GPIO number.",
+      "invalid_self_test": "Self-test settling time must be shorter than its duration, and the failure level must be below the minimum starting level."
+    },
+    "step": {
+      "user": {
+        "title": "UPS Configuration",
+        "description": "Configure the UPS hardware, runtime, shutdown, battery health, calibration, and self-test settings.",
+        "data": {
+          "name": "Name for the integration entry"
+        },
+        "sections": {
+          "ups_runtime": {
+            "name": "UPS",
+            "description": "Hardware, polling, and runtime estimation.",
+            "data": {
+              "hat_address": "Board Address",
+              "hat_type": "Board Type",
+              "battery_capacity": "Battery Capacity",
+              "battery_current_threshold": "Battery Power Threshold",
+              "full_charge_voltage": "Full Charge Voltage",
+              "runtime_load_current": "Runtime Load",
+              "runtime_calibration": "Runtime Calibration",
+              "update_interval": "Update Interval"
+            },
+            "data_description": {
+              "battery_capacity": "Combined rated capacity of the UPS batteries in mAh.",
+              "battery_current_threshold": "Readings below this value are Battery; readings at or above it are Utility.",
+              "full_charge_voltage": "Voltage treated as 100% for the 3S board. The upper battery-percentage curve scales smoothly to this value.",
+              "runtime_load_current": "Minimum expected battery current in mA during an outage. A larger measured discharge current is used automatically.",
+              "runtime_calibration": "Internal runtime adjustment. A completed calibration updates this value automatically.",
+              "update_interval": "How often Home Assistant reads the UPS."
+            }
+          },
+          "shutdown": {
+            "name": "Shutdown",
+            "description": "Warning and shutdown points used by Output and Initiate Shutdown.",
+            "data": {
+              "warning_battery_level": "Warning Level",
+              "critical_battery_level": "Shutdown Level"
+            },
+            "data_description": {
+              "warning_battery_level": "Output becomes Warning on battery at or below this level.",
+              "critical_battery_level": "Output becomes Critical and Initiate Shutdown turns on at or below this level. The board-specific low-voltage limit is also enforced."
+            }
+          },
+          "battery_health": {
+            "name": "Battery Health",
+            "description": "Limits used by Battery Maintenance.",
+            "data": {
+              "battery_replacement_date": "Battery Replacement Date",
+              "battery_replacement_days": "Battery Age Limit",
+              "cycle_limit": "Cycle Limit",
+              "deep_discharge_level": "Deep Discharge Level",
+              "deep_discharge_count_limit": "Deep Discharge Limit",
+              "high_voltage_threshold": "High Voltage Threshold",
+              "high_voltage_hours_limit": "High Voltage Time Limit",
+              "runtime_degradation_level": "Runtime Degradation Level"
+            },
+            "data_description": {
+              "battery_replacement_date": "Optional installation date. Battery Replaced records today and resets all battery history.",
+              "battery_replacement_days": "Battery Maintenance turns on when battery age reaches this many days.",
+              "cycle_limit": "Battery Maintenance turns on after this many accumulated equivalent full discharge cycles.",
+              "deep_discharge_level": "A discharge reaching this percentage counts as one deep discharge.",
+              "deep_discharge_count_limit": "Battery Maintenance turns on after this many deep discharges.",
+              "high_voltage_threshold": "Output becomes High Voltage after the battery remains strictly above this voltage for 15 seconds. Charging time above the threshold is also accumulated. The minimum is 12.50 V.",
+              "high_voltage_hours_limit": "Battery Maintenance turns on after this many accumulated high-voltage hours.",
+              "runtime_degradation_level": "Battery Maintenance turns on when a later calibration falls to this percentage of the first learned runtime."
+            }
+          },
+          "automatic_testing": {
+            "name": "Calibration and Self-Test",
+            "description": "Automatic testing requires a normally closed utility relay controlled by a Raspberry Pi GPIO.",
+            "data": {
+              "automatic_testing": "Enable Automatic Calibration and Self-Test",
+              "self_test_duration": "Self-Test Duration",
+              "self_test_minimum_level": "Minimum Self-Test Level",
+              "self_test_settling_time": "Self-Test Settling Time",
+              "self_test_failure_level": "Self-Test Failure Level",
+              "self_test_emergency_voltage": "Emergency Voltage",
+              "relay_gpio": "Relay GPIO Pin (BCM)",
+              "relay_active_low": "Relay Triggered by LOW",
+              "relay_source_timeout": "Battery Switch Timeout",
+              "relay_test_timeout": "Calibration Timeout"
+            },
+            "data_description": {
+              "automatic_testing": "Off keeps runtime calibration manual and disables self-test entities. On lets calibration and self-test control the GPIO relay.",
+              "self_test_duration": "How long the UPS must run normally on battery for a self-test to pass.",
+              "self_test_minimum_level": "A self-test cannot begin below this battery level.",
+              "self_test_settling_time": "Ignore percentage and voltage failure checks briefly after utility is disconnected.",
+              "self_test_failure_level": "After settling, an immediate drop to or below this level fails the test and turns on Battery Fault.",
+              "self_test_emergency_voltage": "After settling, voltage at or below this value fails the test and restores utility.",
+              "relay_gpio": "BCM GPIO number, not the physical header pin. GPIO17 is header pin 11; GPIO2 and GPIO3 are reserved for I2C.",
+              "relay_active_low": "Leave off when a HIGH GPIO signal activates the relay. Turn on only for a relay activated by LOW.",
+              "relay_source_timeout": "Restore utility if Output Source does not change to Battery within this many seconds.",
+              "relay_test_timeout": "Restore utility if a runtime calibration does not reach the shutdown level within this many hours."
+            }
+          }
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "battery_replaced": {"name": "Battery Replaced"},
+      "cancel_runtime_calibration": {"name": "Cancel Runtime Calibration"},
+      "start_runtime_calibration": {"name": "Start Runtime Calibration"},
+      "cancel_self_test": {"name": "Cancel Self-Test"},
+      "start_self_test": {"name": "Start Self-Test"}
+    },
+    "binary_sensor": {
+      "battery_state": {
+        "name": "Battery State",
+        "state": {"off": "Discharging"}
+      },
+      "online": {
+        "name": "Status",
+        "state": {"off": "Offline", "on": "Online"}
+      },
+      "initiate_shutdown": {
+        "name": "Initiate Shutdown",
+        "state": {"off": "No", "on": "Yes"}
+      },
+      "battery_maintenance": {
+        "name": "Battery Maintenance",
+        "state": {"off": "Not Required", "on": "Required"}
+      },
+      "battery_fault": {
+        "name": "Battery Fault",
+        "state": {"off": "Clear", "on": "Fault"}
+      }
+    },
+    "sensor": {
+      "battery_percentage": {"name": "Battery"},
+      "battery_age": {"name": "Battery Age"},
+      "calibration_elapsed": {"name": "Calibration Elapsed"},
+      "calibration_status": {
+        "name": "Calibration Status",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "waiting_for_battery": "Waiting for Battery"
+        }
+      },
+      "last_calibration_status": {
+        "name": "Last Calibration Status",
+        "state": {"cancelled": "Cancelled", "completed": "Completed"}
+      },
+      "current": {"name": "Current"},
+      "current_sense_voltage": {"name": "Current Sense Voltage"},
+      "load_voltage": {"name": "Battery Voltage"},
+      "last_battery_change": {"name": "Last Battery Change"},
+      "last_runtime_calibration": {"name": "Last Calibration Date"},
+      "self_test_status": {
+        "name": "Self-Test Status",
+        "state": {
+          "idle": "Idle",
+          "running": "Running",
+          "waiting_for_battery": "Waiting for Battery"
+        }
+      },
+      "last_self_test_status": {
+        "name": "Last Self-Test Status",
+        "state": {
+          "cancelled": "Cancelled",
+          "failed": "Failed",
+          "interrupted": "Interrupted",
+          "passed": "Passed"
+        }
+      },
+      "last_self_test_date": {"name": "Last Self-Test Date"},
+      "output": {
+        "name": "Output",
+        "state": {"critical": "Critical", "high_voltage": "High Voltage", "normal": "Normal", "warning": "Warning"}
+      },
+      "power": {"name": "Power"},
+      "runtime": {"name": "Runtime"},
+      "supply_voltage": {"name": "Supply Voltage"},
+      "ups_state": {
+        "name": "Output Source",
+        "state": {"battery": "Battery", "utility": "Utility"}
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_battery_levels": "Shutdown battery level must be lower than warning battery level.",
+      "invalid_hat_address": "Enter an INA219 I2C address from 0x40 through 0x4f.",
+      "invalid_relay_gpio": "GPIO2 and GPIO3 are reserved for I2C. Select a different BCM GPIO number.",
+      "invalid_self_test": "Self-test settling time must be shorter than its duration, and the failure level must be below the minimum starting level."
+    },
+    "step": {
+      "init": {
+        "title": "UPS Configuration",
+        "description": "Choose whether to edit the UPS settings or restore installation defaults.",
+        "menu_options": {
+          "configure": "Edit Configuration",
+          "reset_configuration": "Reset Configuration to Defaults"
+        }
+      },
+      "configure": {
+        "title": "UPS Configuration",
+        "description": "Configure the UPS hardware, runtime, shutdown, battery health, calibration, and self-test settings.",
+        "sections": {
+          "ups_runtime": {
+            "name": "UPS",
+            "description": "Hardware, polling, and runtime estimation.",
+            "data": {
+              "hat_address": "Board Address",
+              "hat_type": "Board Type",
+              "battery_capacity": "Battery Capacity",
+              "battery_current_threshold": "Battery Power Threshold",
+              "full_charge_voltage": "Full Charge Voltage",
+              "runtime_load_current": "Runtime Load",
+              "runtime_calibration": "Runtime Calibration",
+              "update_interval": "Update Interval"
+            },
+            "data_description": {
+              "battery_capacity": "Combined rated capacity of the UPS batteries in mAh.",
+              "battery_current_threshold": "Readings below this value are Battery; readings at or above it are Utility.",
+              "full_charge_voltage": "Voltage treated as 100% for the 3S board. The upper battery-percentage curve scales smoothly to this value.",
+              "runtime_load_current": "Minimum expected battery current in mA during an outage. A larger measured discharge current is used automatically.",
+              "runtime_calibration": "Internal runtime adjustment. A completed calibration updates this value automatically.",
+              "update_interval": "How often Home Assistant reads the UPS."
+            }
+          },
+          "shutdown": {
+            "name": "Shutdown",
+            "description": "Warning and shutdown points used by Output and Initiate Shutdown.",
+            "data": {
+              "warning_battery_level": "Warning Level",
+              "critical_battery_level": "Shutdown Level"
+            },
+            "data_description": {
+              "warning_battery_level": "Output becomes Warning on battery at or below this level.",
+              "critical_battery_level": "Output becomes Critical and Initiate Shutdown turns on at or below this level. The board-specific low-voltage limit is also enforced."
+            }
+          },
+          "battery_health": {
+            "name": "Battery Health",
+            "description": "Limits used by Battery Maintenance.",
+            "data": {
+              "battery_replacement_date": "Battery Replacement Date",
+              "battery_replacement_days": "Battery Age Limit",
+              "cycle_limit": "Cycle Limit",
+              "deep_discharge_level": "Deep Discharge Level",
+              "deep_discharge_count_limit": "Deep Discharge Limit",
+              "high_voltage_threshold": "High Voltage Threshold",
+              "high_voltage_hours_limit": "High Voltage Time Limit",
+              "runtime_degradation_level": "Runtime Degradation Level"
+            },
+            "data_description": {
+              "battery_replacement_date": "Clear this field to remove the date. Battery Replaced records today and resets all battery history.",
+              "battery_replacement_days": "Battery Maintenance turns on when battery age reaches this many days.",
+              "cycle_limit": "Battery Maintenance turns on after this many accumulated equivalent full discharge cycles.",
+              "deep_discharge_level": "A discharge reaching this percentage counts as one deep discharge.",
+              "deep_discharge_count_limit": "Battery Maintenance turns on after this many deep discharges.",
+              "high_voltage_threshold": "Output becomes High Voltage after the battery remains strictly above this voltage for 15 seconds. Charging time above the threshold is also accumulated. The minimum is 12.50 V.",
+              "high_voltage_hours_limit": "Battery Maintenance turns on after this many accumulated high-voltage hours.",
+              "runtime_degradation_level": "Battery Maintenance turns on when a later calibration falls to this percentage of the first learned runtime."
+            }
+          },
+          "automatic_testing": {
+            "name": "Calibration and Self-Test",
+            "description": "Automatic testing requires a normally closed utility relay controlled by a Raspberry Pi GPIO.",
+            "data": {
+              "automatic_testing": "Enable Automatic Calibration and Self-Test",
+              "self_test_duration": "Self-Test Duration",
+              "self_test_minimum_level": "Minimum Self-Test Level",
+              "self_test_settling_time": "Self-Test Settling Time",
+              "self_test_failure_level": "Self-Test Failure Level",
+              "self_test_emergency_voltage": "Emergency Voltage",
+              "relay_gpio": "Relay GPIO Pin (BCM)",
+              "relay_active_low": "Relay Triggered by LOW",
+              "relay_source_timeout": "Battery Switch Timeout",
+              "relay_test_timeout": "Calibration Timeout"
+            },
+            "data_description": {
+              "automatic_testing": "Off keeps runtime calibration manual and disables self-test entities. On lets calibration and self-test control the GPIO relay.",
+              "self_test_duration": "How long the UPS must run normally on battery for a self-test to pass.",
+              "self_test_minimum_level": "A self-test cannot begin below this battery level.",
+              "self_test_settling_time": "Ignore percentage and voltage failure checks briefly after utility is disconnected.",
+              "self_test_failure_level": "After settling, an immediate drop to or below this level fails the test and turns on Battery Fault.",
+              "self_test_emergency_voltage": "After settling, voltage at or below this value fails the test and restores utility.",
+              "relay_gpio": "BCM GPIO number, not the physical header pin. GPIO17 is header pin 11; GPIO2 and GPIO3 are reserved for I2C.",
+              "relay_active_low": "Leave off when a HIGH GPIO signal activates the relay. Turn on only for a relay activated by LOW.",
+              "relay_source_timeout": "Restore utility if Output Source does not change to Battery within this many seconds.",
+              "relay_test_timeout": "Restore utility if a runtime calibration does not reach the shutdown level within this many hours."
+            }
+          }
+        }
+      },
+      "reset_configuration": {
+        "title": "Reset Configuration to Defaults",
+        "description": "This restores all configurable settings to their installation defaults. The board address, battery replacement date, learned runtime calibration, and persistent battery history are preserved.",
+        "submit": "Reset Configuration"
+      }
+    }
+  },
+  "selector": {
+    "hat_type": {
+      "options": {"3s": "3S", "a": "A", "b": "B", "d": "D"}
+    }
+  },
+  "title": "Waveshare 3S UPS for Raspberry Pi"
+}

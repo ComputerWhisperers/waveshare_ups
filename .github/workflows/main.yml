@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate release version
+        shell: python
+        run: |
+          import json
+          import os
+
+          tag = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          with open(
+              "custom_components/waveshare_ups/manifest.json",
+              encoding="utf-8",
+          ) as manifest_file:
+              manifest_version = json.load(manifest_file)["version"]
+
+          if tag != manifest_version:
+              raise SystemExit(
+                  f"Tag version {tag!r} does not match manifest version "
+                  f"{manifest_version!r}"
+              )
+
+      - name: Build HACS release archive
+        shell: python
+        run: |
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          source = Path("custom_components/waveshare_ups")
+          archive = Path("waveshare_ups.zip")
+
+          with ZipFile(archive, "w", ZIP_DEFLATED) as zip_file:
+              for path in source.rglob("*"):
+                  if (
+                      path.is_file()
+                      and "__pycache__" not in path.parts
+                      and path.suffix != ".pyc"
+                  ):
+                      zip_file.write(path, path.relative_to(source))
+
+      - name: Upload GitHub release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" waveshare_ups.zip --clobber
+          else
+            prerelease=""
+            if [[ "${GITHUB_REF_NAME}" =~ [A-Za-z] ]]; then
+              prerelease="--prerelease"
+            fi
+            gh release create "${GITHUB_REF_NAME}" waveshare_ups.zip \
+              --generate-notes \
+              --title "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              ${prerelease}
+          fi
