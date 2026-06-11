@@ -104,17 +104,22 @@ def stable_percentage(
     previous: float | None,
     measured: int,
     source: str,
-    elapsed_seconds: float,
-) -> float:
-    """Hold utility readings steady and rate-limit discharge voltage sag."""
-    if source == "utility" and previous is not None:
-        return float(max(previous, measured))
+    previous_voltage: float | None,
+    voltage: float,
+    voltage_step: float = 0.1,
+) -> tuple[float, float]:
+    """Update percentage after a meaningful cumulative voltage change."""
     if previous is None:
-        return float(measured)
-    if source == "battery" and measured < previous:
-        maximum_drop = elapsed_seconds / 120
-        return max(float(measured), previous - maximum_drop)
-    return min(previous, float(measured)) if source == "battery" else float(measured)
+        return float(measured), voltage
+    if (
+        previous_voltage is not None
+        and abs(voltage - previous_voltage) < voltage_step - 1e-9
+        and measured != 100
+    ):
+        return previous, previous_voltage
+    if source == "utility":
+        return float(max(previous, measured)), voltage
+    return min(previous, float(measured)), voltage
 
 
 def runtime_hours(

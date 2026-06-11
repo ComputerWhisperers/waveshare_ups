@@ -150,8 +150,8 @@ class WaveshareUPSCoordinator(DataUpdateCoordinator[UPSData]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self._entry = entry
         self._displayed_percentage: float | None = None
+        self._percentage_voltage_reference: float | None = None
         self._smoothed_runtime: float | None = None
-        self._last_percentage_update: float | None = None
         self._critical_candidate_since: float | None = None
         self._high_voltage_candidate_since: float | None = None
         self._self_test_percentage_candidate: int | None = None
@@ -806,11 +806,6 @@ class WaveshareUPSCoordinator(DataUpdateCoordinator[UPSData]):
             else None,
         )
         now = monotonic()
-        elapsed_seconds = (
-            now - self._last_percentage_update
-            if self._last_percentage_update is not None
-            else float(options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL))
-        )
         if (
             self._health.self_test_status != SELF_TEST_IDLE
             and self._displayed_percentage is not None
@@ -822,9 +817,7 @@ class WaveshareUPSCoordinator(DataUpdateCoordinator[UPSData]):
             else:
                 same_direction = (
                     self._self_test_percentage_candidate is not None
-                    and (
-                        measured_percentage - self._displayed_percentage
-                    )
+                    and (measured_percentage - self._displayed_percentage)
                     * (
                         self._self_test_percentage_candidate
                         - self._displayed_percentage
@@ -847,14 +840,16 @@ class WaveshareUPSCoordinator(DataUpdateCoordinator[UPSData]):
         else:
             self._self_test_percentage_candidate = None
             self._self_test_percentage_candidate_since = None
-            displayed_percentage = stable_percentage(
-                self._displayed_percentage,
-                measured_percentage,
-                source,
-                elapsed_seconds,
+            displayed_percentage, self._percentage_voltage_reference = (
+                stable_percentage(
+                    self._displayed_percentage,
+                    measured_percentage,
+                    source,
+                    self._percentage_voltage_reference,
+                    sample.bus_voltage,
+                )
             )
         self._displayed_percentage = displayed_percentage
-        self._last_percentage_update = now
         rounded_percentage = round(displayed_percentage)
 
         runtime = runtime_hours(

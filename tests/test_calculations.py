@@ -39,12 +39,31 @@ def test_current_threshold_is_the_single_power_reference() -> None:
     assert calculations.power_source(-116, threshold) == "battery"
 
 
-def test_percentage_holds_on_utility_and_limits_discharge_sag() -> None:
-    assert calculations.stable_percentage(97, 95, "utility", 10) == 97
-    assert calculations.stable_percentage(97, 98, "utility", 10) == 98
-    assert calculations.stable_percentage(100, 92, "battery", 10) > 99.9
-    assert calculations.stable_percentage(100, 92, "battery", 120) == 99
-    assert calculations.stable_percentage(91, 92, "battery", 10) == 91
+def test_percentage_updates_after_cumulative_tenth_volt_change() -> None:
+    assert calculations.stable_percentage(100, 99, "battery", 12.50, 12.49) == (
+        100,
+        12.50,
+    )
+    assert calculations.stable_percentage(100, 98, "battery", 12.50, 12.44) == (
+        100,
+        12.50,
+    )
+    assert calculations.stable_percentage(100, 94, "battery", 12.50, 12.36) == (
+        94,
+        12.36,
+    )
+    assert calculations.stable_percentage(94, 95, "battery", 12.36, 12.46) == (
+        94,
+        12.46,
+    )
+    assert calculations.stable_percentage(94, 96, "utility", 12.36, 12.46) == (
+        96,
+        12.46,
+    )
+    assert calculations.stable_percentage(99, 100, "utility", 12.44, 12.49) == (
+        100,
+        12.49,
+    )
 
 
 def test_runtime_uses_expected_load_as_a_floor() -> None:
