@@ -33,7 +33,7 @@
               "update_interval": "Update Interval"
             },
             "data_description": {
-              "battery_capacity": "Combined rated capacity of the UPS batteries in mAh.",
+              "battery_capacity": "Single battery capacity in mAh. For example, enter 3200 for three 3200 mAh batteries connected in series.",
               "battery_current_threshold": "Readings below this value are Battery; readings at or above it are Utility.",
               "full_charge_voltage": "Voltage treated as 100% for the 3S board. The upper battery-percentage curve scales smoothly to this value.",
               "runtime_load_current": "Minimum expected battery current in mA during an outage. A larger measured discharge current is used automatically.",
@@ -225,7 +225,7 @@
               "update_interval": "Update Interval"
             },
             "data_description": {
-              "battery_capacity": "Combined rated capacity of the UPS batteries in mAh.",
+              "battery_capacity": "Single battery capacity in mAh. For example, enter 3200 for three 3200 mAh batteries connected in series.",
               "battery_current_threshold": "Readings below this value are Battery; readings at or above it are Utility.",
               "full_charge_voltage": "Voltage treated as 100% for the 3S board. The upper battery-percentage curve scales smoothly to this value.",
               "runtime_load_current": "Minimum expected battery current in mA during an outage. A larger measured discharge current is used automatically.",
